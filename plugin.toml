@@ -1,0 +1,4 @@
+[plugin]
+description = "dokku aws s3 service plugin"
+version = "0.1.0"
+[plugin.config]
