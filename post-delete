@@ -5,6 +5,5 @@
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
 APP="$1";
-
-docker stop "${APP}-s3"
-echo "S3 fake container ${APP}-s3 removed"
+dokku aws-s3:stop "${APP}"
+echo "S3 fake container ${APP} removed"

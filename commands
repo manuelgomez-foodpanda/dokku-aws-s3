@@ -1,45 +1,85 @@
 #!/usr/bin/env bash
-source "$PLUGIN_DATA_ROOT/config"
+source "$(dirname "$0")/config"
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
 if [[ ! -d $PLUGIN_DATA_ROOT ]]; then
   echo "$PLUGIN_SERVICE: Please run: sudo dokku plugin:install"
 fi
 
+APP=$2
+APP=$2
 case "$1" in
   $PLUGIN_COMMAND_PREFIX:run)
-    "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/subcommands/run" "$@"
-    ;;
+    if [ ! -z "${APP}" ]; then
+      docker run --name "${APP}" -p 5000:80 convox/aws-s3
+    else
+      echo "$1 : Missing argument <app name>";
+    fi
+  ;;
 
   $PLUGIN_COMMAND_PREFIX:stop)
-    "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/subcommands/stop" "$@"
-    ;;
+    if [ ! -z "${APP}" ]; then
+      docker stop "${APP}"
+    else
+      echo "$1 : Missing argument <app name>";
+    fi
+  ;;
 
-    help | $PLUGIN_COMMAND_PREFIX:help)
-        help_content_func() {
-          # shellcheck disable=SC2034
-          declare desc="return $PLUGIN_COMMAND_PREFIX plugin help content"
-          echo "$PLUGIN_COMMAND_PREFIX:run <app>, Create S3 image for defined <app>"
-          echo "$PLUGIN_COMMAND_PREFIX:stop <name>, Stop S3 image for <app"
-        }
+  $PLUGIN_COMMAND_PREFIX:link)
+    if [ ! -z "${APP}" ] && [ ! -z "${APP}" ]; then
+      s3-link-cmd() {
+          declare desc="link the $PLUGIN_SERVICE service to the app"
+          local cmd="$PLUGIN_COMMAND_PREFIX:link" argv=("$@"); [[ ${argv[0]} == "$cmd" ]] && shift 1
+          declare SERVICE="$1" APP="$2"
+          APP=${APP:="$DOKKU_APP_NAME"}
+
+          [[ -z "$SERVICE" ]] && dokku_log_fail "Please specify a name for the service"
+          [[ -z "$APP" ]] && dokku_log_fail "Please specify an app to run the command on"
+          verify_app_name "$APP"
+          verify_service_name "$SERVICE"
+          service_link "$SERVICE" "$APP"
+      }
+      s3-link-cmd "$@"
+    else
+      echo "$1 : Missing argument <app name>";
+    fi
+  ;;
+
+  $PLUGIN_COMMAND_PREFIX:unlink)
+    if [ ! -z "${APP}" ] && [ ! -z "${APP}" ]; then
+      s3-unlink-cmd() {
+          declare desc="unlink the $PLUGIN_SERVICE service from the app"
+          local cmd="$PLUGIN_COMMAND_PREFIX:unlink" argv=("$@"); [[ ${argv[0]} == "$cmd" ]] && shift 1
+          declare SERVICE="$1" APP="$2"
+          APP=${APP:="$DOKKU_APP_NAME"}
+
+          [[ -z "$SERVICE" ]] && dokku_log_fail "Please specify a name for the service"
+          [[ -z "$APP" ]] && dokku_log_fail "Please specify an app to run the command on"
+          verify_app_name "$APP"
+          verify_service_name "$SERVICE"
+          service_unlink "$SERVICE" "$APP"
+      }
+
+      s3-unlink-cmd "$@"
+    else
+      echo "$1 : Missing argument <app name>";
+    fi
+  ;;
+
+  help | $PLUGIN_COMMAND_PREFIX:help)
+    help_content_func() {
+      # shellcheck disable=SC2034
+      declare desc="return $PLUGIN_COMMAND_PREFIX plugin help content"
+      echo "$PLUGIN_COMMAND_PREFIX:run <app>, Create S3 instance for defined <app>"
+      echo "$PLUGIN_COMMAND_PREFIX:stop <app>, Stop S3 instance for <app>"
+      echo "$PLUGIN_COMMAND_PREFIX:link <name> <app>, Link the $PLUGIN_SERVICE service to the app"
+      echo "$PLUGIN_COMMAND_PREFIX:unlink <name> <app>, Unlink the $PLUGIN_SERVICE service from the app"
+    }
     if [[ $1 = "$PLUGIN_COMMAND_PREFIX:help" ]] ; then
       echo -e "Usage: dokku $PLUGIN_COMMAND_PREFIX[:COMMAND]"
-      echo ''
-      echo "List your $PLUGIN_COMMAND_PREFIX services."
-      echo ''
-      echo 'Example:'
-      echo ''
-      echo "\$ dokku $PLUGIN_COMMAND_PREFIX:list"
-      echo ''
-      echo 'Additional commands:'
       help_content_func | sort | column -c2 -t -s,
     else
       help_content_func
     fi
-    ;;
-
-  *)
-    exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
-    ;;
-
+  ;;
 esac
