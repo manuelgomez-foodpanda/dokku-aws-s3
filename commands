@@ -1,2 +1,45 @@
 #!/usr/bin/env bash
+source "$PLUGIN_DATA_ROOT/config"
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+if [[ ! -d $PLUGIN_DATA_ROOT ]]; then
+  echo "$PLUGIN_SERVICE: Please run: sudo dokku plugin:install"
+fi
+
+case "$1" in
+  $PLUGIN_COMMAND_PREFIX:run)
+    "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/subcommands/run" "$@"
+    ;;
+
+  $PLUGIN_COMMAND_PREFIX:stop)
+    "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/subcommands/stop" "$@"
+    ;;
+
+    help | $PLUGIN_COMMAND_PREFIX:help)
+        help_content_func() {
+          # shellcheck disable=SC2034
+          declare desc="return $PLUGIN_COMMAND_PREFIX plugin help content"
+          echo "$PLUGIN_COMMAND_PREFIX:run <app>, Create S3 image for defined <app>"
+          echo "$PLUGIN_COMMAND_PREFIX:stop <name>, Stop S3 image for <app"
+        }
+    if [[ $1 = "$PLUGIN_COMMAND_PREFIX:help" ]] ; then
+      echo -e "Usage: dokku $PLUGIN_COMMAND_PREFIX[:COMMAND]"
+      echo ''
+      echo "List your $PLUGIN_COMMAND_PREFIX services."
+      echo ''
+      echo 'Example:'
+      echo ''
+      echo "\$ dokku $PLUGIN_COMMAND_PREFIX:list"
+      echo ''
+      echo 'Additional commands:'
+      help_content_func | sort | column -c2 -t -s,
+    else
+      help_content_func
+    fi
+    ;;
+
+  *)
+    exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
+    ;;
+
+esac

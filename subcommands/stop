@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-source "$(dirname "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")/config"
+source "$PLUGIN_DATA_ROOT/config"
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
 s3-stop-cmd() {
-  declare desc="start a previously stopped $PLUGIN_SERVICE service"
-  local cmd="$PLUGIN_COMMAND_PREFIX:start" argv=("$@"); [[ ${argv[0]} == "$cmd" ]] && shift 1
-  declare SERVICE="$1"
-
-  [[ -z "$SERVICE" ]] && dokku_log_fail "Please specify a name for the service"
-  verify_service_name "$SERVICE"
-  service_start "$SERVICE"
+  APP=$1
+  docker stop "${APP}-s3"
 }
 
 s3-stop-cmd "$@"
