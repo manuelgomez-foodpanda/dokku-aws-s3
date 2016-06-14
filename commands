@@ -6,12 +6,47 @@ if [[ ! -d $PLUGIN_DATA_ROOT ]]; then
   echo "$PLUGIN_SERVICE: Please run: sudo dokku plugin:install"
 fi
 
-APP=$2
-APP=$2
+
+echo "/ $2- / ${AWSS3_DEFAULT_ACCESS_KEY} / ${AWSS3_DEFAULT_SECRET} / ${AWSS3_DEFAULT_BUCKET_NAME} / ${APP} /":
+
 case "$1" in
   $PLUGIN_COMMAND_PREFIX:run)
+  while getopts ":n:a:s:b:" opt; do
+      case $opt in
+        n)
+          APP=$OPTARG;
+          if [ -z "${APP}" ]; then
+            echo "ERROR: Instance name is missing. Aborting.";
+          fi
+          ;;
+        a)
+          AWS_ACCESS=$OPTARG;
+          if [ -z "$AWS_ACCESS" ]; then
+            AWS_ACCESS="$AWSS3_DEFAULT_ACCESS_KEY"
+          fi
+          ;;
+        s)
+          AWS_SECRET=$OPTARG;
+          if [ -z "$AWS_SECRET" ]; then
+            AWS_SECRET="$AWSS3_DEFAULT_SECRET"
+          fi
+          ;;
+        b)
+          AWS_BUCKET=$OPTARG;
+          if [ -z "$AWS_BUCKET" ]; then
+            echo "WARNING: AWS S3 bucket name is missing. Using default $AWSS3_DEFAULT_BUCKET (not recommended).";
+            AWS_BUCKET="$AWSS3_DEFAULT_BUCKET"
+          fi
+          ;;
+        :)
+          echo "Option -$OPTARG requires an argument." >&2
+          exit 1
+          ;;
+      esac
+    done
+    echo "/ $1 / ${AWS_ACCESS} / ${AWS_SECRET} / ${AWS_BUCKET} / ${APP} /":
     if [ ! -z "${APP}" ]; then
-      docker run --name "${APP}" -p 5000:80 convox/aws-s3
+      docker run -p 5000:80 mgomez/aws-s3 bash -c "/opt/fakes3/bin/fakes3-init -a ${AWS_ACCESS} -s <${AWS_SECRET}> -b ${AWS_BUCKET}"
     else
       echo "$1 : Missing argument <app name>";
     fi

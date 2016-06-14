@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-export AWSS3_IMAGE=${AWSS3_IMAGE:="convox/aws-s3"}
+export AWSS3_IMAGE=${AWSS3_IMAGE:="mgomez/aws-s3"}
 export AWSS3_IMAGE_VERSION=${AWSS3_IMAGE_VERSION:="latest"}
 export AWSS3_ROOT=${AWSS3_ROOT:="/var/lib/dokku/services/awss3"}
+export AWSS3_DEFAULT_ACCESS_KEY=${AWSS3_DEFAULT_ACCESS_KEY:="fakeS3AccessKeyForMyPeople"}
+export AWSS3_DEFAULT_SECRET=${AWSS3_DEFAULT_SECRET:="TheSecretOfTheTrumpet"}
+export AWSS3_DEFAULT_BUCKET_NAME=${AWSS3_DEFAULT_BUCKET_NAME:="TestBucket"}
 
 export PLUGIN_COMMAND_PREFIX="aws-s3"
 export PLUGIN_DATA_ROOT=$AWSS3_ROOT
