@@ -6,57 +6,79 @@ if [[ ! -d $PLUGIN_DATA_ROOT ]]; then
   echo "$PLUGIN_SERVICE: Please run: sudo dokku plugin:install"
 fi
 
-
-echo "/ $2- / ${AWSS3_DEFAULT_ACCESS_KEY} / ${AWSS3_DEFAULT_SECRET} / ${AWSS3_DEFAULT_BUCKET_NAME} / ${APP} /":
+APP=$2; #generic case, overriden in RUN command.
 
 case "$1" in
   $PLUGIN_COMMAND_PREFIX:run)
-  while getopts ":n:a:s:b:" opt; do
-      case $opt in
-        n)
-          APP=$OPTARG;
-          if [ -z "${APP}" ]; then
-            echo "ERROR: Instance name is missing. Aborting.";
-          fi
-          ;;
-        a)
-          AWS_ACCESS=$OPTARG;
-          if [ -z "$AWS_ACCESS" ]; then
-            AWS_ACCESS="$AWSS3_DEFAULT_ACCESS_KEY"
-          fi
-          ;;
-        s)
-          AWS_SECRET=$OPTARG;
-          if [ -z "$AWS_SECRET" ]; then
-            AWS_SECRET="$AWSS3_DEFAULT_SECRET"
-          fi
-          ;;
-        b)
-          AWS_BUCKET=$OPTARG;
-          if [ -z "$AWS_BUCKET" ]; then
-            echo "WARNING: AWS S3 bucket name is missing. Using default $AWSS3_DEFAULT_BUCKET (not recommended).";
-            AWS_BUCKET="$AWSS3_DEFAULT_BUCKET"
-          fi
-          ;;
-        :)
-          echo "Option -$OPTARG requires an argument." >&2
-          exit 1
-          ;;
-      esac
+    COMMAND="$1"
+    shift #skipping subcommand aws-s3:run
+    for i in "$@"; do
+        case $i in
+            -n=*)
+            APP="${i#*=}"
+            shift # past argument=value
+            ;;
+            -p=*)
+            PORT="${i#*=}"
+            if [ -z "$PORT" ]; then
+              PORT="$AWSS3_DEFAULT_PORT"
+            fi
+            shift # past argument=value
+            ;;
+            -a=*)
+            AWS_ACCESS="${i#*=}"
+            shift # past argument=value
+            ;;
+            -s=*)
+            AWS_SECRET="${i#*=}"
+            shift # past argument=value
+            ;;
+            -b=*)
+            AWS_BUCKET="${i#*=}"
+            shift # past argument=value
+            ;;
+            *)
+                    # unknown option
+            ;;
+        esac
     done
-    echo "/ $1 / ${AWS_ACCESS} / ${AWS_SECRET} / ${AWS_BUCKET} / ${APP} /":
+
     if [ ! -z "${APP}" ]; then
-      docker run -p 5000:80 mgomez/aws-s3 bash -c "/opt/fakes3/bin/fakes3-init -a ${AWS_ACCESS} -s <${AWS_SECRET}> -b ${AWS_BUCKET}"
+      if [ ! -z "$(docker ps | grep "${APP}" | awk '{ print $1 }')" ]; then
+        echo "$COMMAND : Instance with name ${APP} is already running. Use a different one or remove the existing with docker rm.";
+      else
+        docker run --name="${APP}" -p "${PORT}":80 "${AWSS3_IMAGE}" bash -c "/opt/fakes3/bin/fakes3-init -a ${AWS_ACCESS} -s ${AWS_SECRET} -b ${AWS_BUCKET}"
+      fi
     else
-      echo "$1 : Missing argument <app name>";
+      echo "$COMMAND : Missing argument <INSTANCE_NAME>";
     fi
   ;;
 
   $PLUGIN_COMMAND_PREFIX:stop)
     if [ ! -z "${APP}" ]; then
       docker stop "${APP}"
+      if [ "$2" = "--all" ]; then
+        echo "Stoping and removing all fakeS3 instances..."
+        for instance in $(docker ps | grep "${AWSS3_IMAGE}" | awk '{ print $1 }'); do
+            docker stop "${instance}"
+        done
+      fi
     else
-      echo "$1 : Missing argument <app name>";
+      echo "$1 : Missing argument <INSTANCE_NAME>";
+    fi
+  ;;
+
+  $PLUGIN_COMMAND_PREFIX:rm)
+    if [ ! -z "${APP}" ]; then
+      docker rm "${APP}"
+      if [ "$2" = "--all" ]; then
+        echo "Stoping and removing all fakeS3 instances..."
+        for instance in $(docker ps | grep "${AWSS3_IMAGE}" | awk '{ print $1 }'); do
+            docker rm -f "${instance}"
+        done
+      fi
+    else
+      echo "$1 : Missing argument <INSTANCE_NAME>";
     fi
   ;;
 
@@ -97,7 +119,7 @@ case "$1" in
 
       s3-unlink-cmd "$@"
     else
-      echo "$1 : Missing argument <app name>";
+      echo "$1 : Missing argument <INSTANCE_NAME>";
     fi
   ;;
 
@@ -105,10 +127,11 @@ case "$1" in
     help_content_func() {
       # shellcheck disable=SC2034
       declare desc="return $PLUGIN_COMMAND_PREFIX plugin help content"
-      echo "$PLUGIN_COMMAND_PREFIX:run <app>, Create S3 instance for defined <app>"
-      echo "$PLUGIN_COMMAND_PREFIX:stop <app>, Stop S3 instance for <app>"
-      echo "$PLUGIN_COMMAND_PREFIX:link <name> <app>, Link the $PLUGIN_SERVICE service to the app"
-      echo "$PLUGIN_COMMAND_PREFIX:unlink <name> <app>, Unlink the $PLUGIN_SERVICE service from the app"
+      echo "$PLUGIN_COMMAND_PREFIX:run -n=<INSTANCE_NAME> -p=<PORT> -a=<ACCESSKEY> -s=<SECRET> -b=<BUCKET> : Create and run fake S3 instance for defined <INSTANCE_NAME>"
+      echo "$PLUGIN_COMMAND_PREFIX:stop <INSTANCE_NAME> : Stop S3 instance for <INSTANCE_NAME> or all running instances with --all as instance name"
+      echo "$PLUGIN_COMMAND_PREFIX:rm <INSTANCE_NAME> : Remove S3 instance for <INSTANCE_NAME>  or all running instances with --all as instance name"
+      echo "$PLUGIN_COMMAND_PREFIX:link <name> <INSTANCE_NAME> : Link the $PLUGIN_SERVICE service to the app"
+      echo "$PLUGIN_COMMAND_PREFIX:unlink <name> <INSTANCE_NAME> : Unlink the $PLUGIN_SERVICE service from the app"
     }
     if [[ $1 = "$PLUGIN_COMMAND_PREFIX:help" ]] ; then
       echo -e "Usage: dokku $PLUGIN_COMMAND_PREFIX[:COMMAND]"
