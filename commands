@@ -68,6 +68,23 @@ case "$1" in
     fi
   ;;
 
+  $PLUGIN_COMMAND_PREFIX:check)
+    if [ ! -z "${APP}" ]; then
+      if [ "${APP}" = "--all" ]; then
+        INSTANCE_TO_CHECK="${AWSS3_IMAGE}"
+      else
+        INSTANCE_TO_CHECK="$2"
+      fi
+      if [ ! -z "$(docker ps | grep "${INSTANCE_TO_CHECK}" | awk '{print $1}')" ]; then
+        echo "A running "${INSTANCE_TO_CHECK}" instance was found";
+      else
+        echo "No running "${INSTANCE_TO_CHECK}" instance was found";
+      fi
+    else
+      echo "$1 : Missing argument <INSTANCE_NAME>";
+    fi
+  ;;
+
   $PLUGIN_COMMAND_PREFIX:rm)
     if [ ! -z "${APP}" ]; then
       docker rm "${APP}"
@@ -129,6 +146,7 @@ case "$1" in
       declare desc="return $PLUGIN_COMMAND_PREFIX plugin help content"
       echo "$PLUGIN_COMMAND_PREFIX:run -n=<INSTANCE_NAME> -p=<PORT> -a=<ACCESSKEY> -s=<SECRET> -b=<BUCKET> : Create and run fake S3 instance for defined <INSTANCE_NAME>"
       echo "$PLUGIN_COMMAND_PREFIX:stop <INSTANCE_NAME> : Stop S3 instance for <INSTANCE_NAME> or all running instances with --all as instance name"
+      echo "$PLUGIN_COMMAND_PREFIX:check <INSTANCE_NAME> : Check if a FakeS3 instance is currently running"
       echo "$PLUGIN_COMMAND_PREFIX:rm <INSTANCE_NAME> : Remove S3 instance for <INSTANCE_NAME>  or all running instances with --all as instance name"
       echo "$PLUGIN_COMMAND_PREFIX:link <name> <INSTANCE_NAME> : Link the $PLUGIN_SERVICE service to the app"
       echo "$PLUGIN_COMMAND_PREFIX:unlink <name> <INSTANCE_NAME> : Unlink the $PLUGIN_SERVICE service from the app"
